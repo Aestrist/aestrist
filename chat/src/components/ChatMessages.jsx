@@ -1,81 +1,112 @@
 import { useEffect, useRef } from 'react'
-import { Bot, User } from 'lucide-react'
+import AestristLogo from './AestristLogo'
 
-function formatMessage(text) {
+// Minimal markdown renderer — no dependencies
+function renderMarkdown(text) {
   if (!text) return ''
-  // Simple markdown-like rendering — handle code blocks, bold, italic
   let html = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    // Code blocks
-    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+    // Fenced code blocks
+    .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
+      `<pre class="code-block${lang ? ` lang-${lang}` : ''}"><code>${code.trimEnd()}</code></pre>`
+    )
     // Inline code
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
     // Bold
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
     // Italic
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    // Newlines to <br>
+    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+    // Headers
+    .replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="md-h1">$1</h1>')
+    // Blockquote
+    .replace(/^&gt; (.+)$/gm, '<blockquote class="md-blockquote">$1</blockquote>')
+    // Unordered list items
+    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+    // Wrap consecutive li in ul
+    .replace(/(<li>.*<\/li>\n?)+/g, s => `<ul class="md-list">${s}</ul>`)
+    // Newlines to paragraphs (but not inside blocks)
+    .replace(/\n{2,}/g, '</p><p class="md-p">')
     .replace(/\n/g, '<br>')
-  return html
+
+  return `<p class="md-p">${html}</p>`
 }
 
-export default function ChatMessages({ messages, loading }) {
+export default function ChatMessages({ messages, streaming }) {
   const bottomRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+  }, [messages, streaming])
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center max-w-sm">
-          <Bot size={32} className="mx-auto mb-4 text-[#333]" />
-          <p className="text-[#555] text-sm">Start a conversation. Choose free or paid tier to begin.</p>
+      <div className="messages-empty">
+        <div className="empty-state">
+          <AestristLogo size={40} className="empty-logo" />
+          <h2 className="empty-title">How can I help?</h2>
+          <p className="empty-subtitle">Start a conversation with any AI model.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6">
-      <div className="max-w-3xl mx-auto space-y-4">
+    <div className="messages-scroll">
+      <div className="messages-inner">
         {messages.map((msg, i) => (
-          <div key={i} className={`message-enter flex gap-3 ${msg.role === 'user' ? '' : ''}`}>
-            <div className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${
-              msg.role === 'user' ? 'bg-[#1a1a1a]' : 'bg-[#d97757]/10'
-            }`}>
-              {msg.role === 'user' ? <User size={14} className="text-[#777]" /> : <Bot size={14} className="text-[#d97757]" />}
-            </div>
-            <div className={`flex-1 chat-message ${
-              msg.role === 'user' ? 'msg-user rounded-2xl px-4 py-3' : 'msg-assistant rounded-2xl px-4 py-3'
-            }`}>
-              {msg.role === 'assistant' && msg.model && (
-                <p className="text-[10px] text-[#555] uppercase tracking-wider mb-1">{msg.model}</p>
-              )}
-              <div
-                className="text-sm leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
-              />
-            </div>
-          </div>
+          <Message key={msg.id ?? i} msg={msg} />
         ))}
+        {/* Spacer */}
+        <div ref={bottomRef} style={{ height: 1 }} />
+      </div>
+    </div>
+  )
+}
 
-        {loading && (
-          <div className="message-enter flex gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[#d97757]/10 flex items-center justify-center">
-              <Bot size={14} className="text-[#d97757]" />
-            </div>
-            <div className="msg-assistant rounded-2xl px-4 py-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#d97757] typing-dot" />
-              <span className="w-1.5 h-1.5 rounded-full bg-[#d97757] typing-dot" />
-              <span className="w-1.5 h-1.5 rounded-full bg-[#d97757] typing-dot" />
-            </div>
-          </div>
+function Message({ msg }) {
+  const isUser = msg.role === 'user'
+  const isStreaming = msg.streaming && !isUser
+
+  if (isUser) {
+    return (
+      <div className="msg msg-user">
+        <div className="msg-bubble msg-bubble-user">
+          <p className="msg-text">{msg.content}</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="msg msg-assistant">
+      <div className="msg-avatar">
+        <AestristLogo size={18} />
+      </div>
+      <div className="msg-body">
+        {msg.model && (
+          <span className="msg-model">{msg.model.split('/').pop()}</span>
         )}
-        <div ref={bottomRef} />
+        <div className="msg-content">
+          {isStreaming && !msg.content ? (
+            <div className="typing-indicator">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </div>
+          ) : (
+            <div
+              className="md-content"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+            />
+          )}
+          {isStreaming && msg.content && (
+            <span className="cursor-blink" />
+          )}
+        </div>
       </div>
     </div>
   )
