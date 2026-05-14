@@ -1,20 +1,5 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    { "source": "/chat/assets/:path*", "destination": "/assets/:path*" },
-    { "source": "/chat/:path*", "destination": "/index.html" }
-  ],
-  "functions": {
-    "api/chat.js": {
-      "maxDuration": 60
-    },
-    "api/models.js": {
-      "maxDuration": 15
-    },
-    "api/**/*.js": {
-      "maxDuration": 30
-    }
-  }
+  "framework": "vite"
 }

@@ -1,0 +1,9 @@
+{
+  "name": "aestrist",
+  "private": true,
+  "dependencies": {
+    "@upstash/redis": "^1.38.0",
+    "stripe": "^22.1.1",
+    "uuid": "^14.0.0"
+  }
+}

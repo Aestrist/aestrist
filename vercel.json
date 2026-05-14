@@ -1,10 +1,19 @@
 {
-  "buildCommand": null,
-  "outputDirectory": "lander",
+  "buildCommand": "cd chat && npm install && npm run build && cd .. && mkdir -p dist && cp -r lander/* dist/ && mkdir -p dist/chat && cp -r chat/dist/* dist/chat/",
+  "outputDirectory": "dist",
   "framework": null,
+  "functions": {
+    "api/chat.js": {
+      "maxDuration": 60
+    },
+    "api/models.js": {
+      "maxDuration": 15
+    },
+    "api/**/*.js": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
-    { "source": "/chat", "destination": "https://aestrist-chat.vercel.app/chat" },
-    { "source": "/chat/:path*", "destination": "https://aestrist-chat.vercel.app/chat/:path*" },
-    { "source": "/api/:path*", "destination": "https://aestrist-chat.vercel.app/api/:path*" }
+    { "source": "/chat/(.*)", "destination": "/chat/index.html" }
   ]
 }
