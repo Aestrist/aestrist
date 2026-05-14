@@ -1,0 +1,63 @@
+{
+  "name": "cronixui-react",
+  "version": "1.0.0",
+  "description": "CronixUI React Components - TypeScript React components with dark theme",
+  "keywords": [
+    "react",
+    "typescript",
+    "ui",
+    "dark-mode",
+    "components",
+    "design-system"
+  ],
+  "license": "GPL-3.0",
+  "author": "CazyUndee",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./tokens": {
+      "import": "./dist/tokens/index.js",
+      "types": "./dist/tokens/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "build:watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.3.0",
+    "jest": "^29.0.0",
+    "@testing-library/react": "^13.0.0",
+    "@testing-library/jest-dom": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CazyUndee/CronixUI.git",
+    "directory": "packages/react"
+  },
+  "bugs": {
+    "url": "https://github.com/CazyUndee/CronixUI/issues"
+  },
+  "homepage": "https://github.com/CazyUndee/CronixUI#readme"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "cronixui",
+  "version": "1.0.1",
+  "description": "CronixUI - A dark-themed UI toolkit with crimson accents and Outfit typography",
+  "keywords": [
+    "ui",
+    "css",
+    "dark-mode",
+    "design-system",
+    "components"
+  ],
+  "license": "GPL-3.0",
+  "author": "CazyUndee",
+  "type": "commonjs",
+  "main": "dist/cronixui.js",
+  "style": "dist/cronixui.css",
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "npx live-server demo"
+  }
+}
