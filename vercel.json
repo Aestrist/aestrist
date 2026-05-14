@@ -3,6 +3,7 @@
   "outputDirectory": "lander",
   "framework": null,
   "rewrites": [
+    { "source": "/chat", "destination": "https://aestrist-chat.vercel.app/chat" },
     { "source": "/chat/:path*", "destination": "https://aestrist-chat.vercel.app/chat/:path*" },
     { "source": "/api/:path*", "destination": "https://aestrist-chat.vercel.app/api/:path*" }
   ]
