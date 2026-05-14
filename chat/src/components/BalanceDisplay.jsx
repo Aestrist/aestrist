@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Coins } from 'lucide-react'
+import { Coins, Key } from 'lucide-react'
 import { useUser } from '../lib/store'
 import StripeCheckout from './StripeCheckout'
 
-export default function BalanceDisplay({ tier }) {
+export default function BalanceDisplay({ tier, paymentMode }) {
   const { balance, transactions } = useUser()
   const [showModal, setShowModal] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
@@ -12,6 +12,15 @@ export default function BalanceDisplay({ tier }) {
     return (
       <div className="flex items-center gap-2">
         <span className="text-xs text-[#555]">free tier</span>
+      </div>
+    )
+  }
+
+  if (paymentMode === 'byok') {
+    return (
+      <div className="flex items-center gap-2">
+        <Key size={12} className="text-[#6b9e6b]" />
+        <span className="text-xs text-[#555]">your key</span>
       </div>
     )
   }

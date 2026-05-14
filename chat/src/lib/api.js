@@ -22,8 +22,8 @@ export async function auth(displayName) {
   return post('/api/auth', { displayName })
 }
 
-export async function sendMessage({ message, model, tier, userId, provider }) {
-  return post('/api/chat', { message, model, tier, userId, provider })
+export async function sendMessage({ message, model, tier, userId, provider, paymentMode, userApiKey }) {
+  return post('/api/chat', { message, model, tier, userId, provider, paymentMode, userApiKey })
 }
 
 export async function getBalance(userId) {
