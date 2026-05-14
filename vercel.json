@@ -1,5 +1,9 @@
 {
   "buildCommand": null,
   "outputDirectory": "lander",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    { "source": "/chat/:path*", "destination": "https://aestrist-chat.vercel.app/chat/:path*" },
+    { "source": "/api/:path*", "destination": "https://aestrist-chat.vercel.app/api/:path*" }
+  ]
 }
