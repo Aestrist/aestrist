@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis';
+import { AEL_1_ID, AEL_1_PRO_ID, isAelModel, MODEL_ROUTES, publicModelId } from './models.js';
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -49,15 +50,200 @@ function sseError(res, message, status) {
   res.end();
 }
 
+// ── Provider implementations ────────────────────────────────────────
+
+async function streamAelProvider(model, messages, res) {
+const baseUrl = 'https://fantastic-semifreddo-52f872.netlify.app/v1/chat/completions';
+const response = await fetch(baseUrl, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+model,
+messages,
+temperature: 0.7,
+max_tokens: 2048,
+stream: true,
+}),
+signal: AbortSignal.timeout(60000),
+});
+if (!response.ok) throw new Error(`Ael API ${response.status}`);
+if (!response.body) throw new Error('No response body');
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+let buffer = '';
+let firstChunk = null;
+let gotValidChunk = false;
+try {
+while (!gotValidChunk) {
+const { done, value } = await reader.read();
+if (done) break;
+buffer += decoder.decode(value, { stream: true });
+const lines = buffer.split('\n');
+buffer = lines.pop() || '';
+for (const line of lines) {
+const trimmed = line.trim();
+if (!trimmed || trimmed === 'data: [DONE]') continue;
+if (!trimmed.startsWith('data: ')) continue;
+try {
+const parsed = JSON.parse(trimmed.slice(6));
+if (parsed.error) continue;
+if (parsed.choices?.[0]?.delta?.content !== undefined || parsed.choices?.[0]?.finish_reason) {
+gotValidChunk = true;
+firstChunk = parsed;
+break;
+}
+} catch { continue; }
+}
+}
+} catch {
+reader.releaseLock();
+throw new Error('Ael pre-flight read failed');
+}
+if (!gotValidChunk) {
+reader.releaseLock();
+throw new Error('Ael returned no valid content');
+}
+sseChunk(res, firstChunk);
+try {
+while (true) {
+const { done, value } = await reader.read();
+if (done) break;
+buffer += decoder.decode(value, { stream: true });
+const lines = buffer.split('\n');
+buffer = lines.pop() || '';
+for (const line of lines) {
+const trimmed = line.trim();
+if (!trimmed || trimmed === 'data: [DONE]') continue;
+if (!trimmed.startsWith('data: ')) continue;
+try {
+const parsed = JSON.parse(trimmed.slice(6));
+const delta = parsed?.choices?.[0]?.delta?.content;
+if (delta) sseChunk(res, { delta });
+} catch { /* ignore malformed */ }
+}
+}
+} finally {
+reader.releaseLock();
+}
+sseDone(res);
+}
+
+async function streamNimProvider(model, messages, res) {
+const apiKey = process.env.NVIDIA_API_KEY;
+if (!apiKey) throw new Error('NVIDIA_API_KEY not configured');
+const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+Authorization: `Bearer ${apiKey}`,
+},
+body: JSON.stringify({
+model,
+messages,
+temperature: 0.7,
+max_tokens: 2048,
+stream: true,
+}),
+signal: AbortSignal.timeout(60000),
+});
+if (!response.ok) {
+const err = await response.text();
+throw new Error(`NVIDIA ${response.status}: ${err}`);
+}
+await pipeStream(response.body, res);
+}
+
+async function streamOpenRouterProvider(model, messages, userId, res) {
+const apiKey = process.env.OPENROUTER_API_KEY;
+if (!apiKey) throw new Error('OPENROUTER_API_KEY not configured');
+const balanceKey = `user:${userId}:balance`;
+const rawBalance = await redis.get(balanceKey);
+const balance = parseFloat(rawBalance || '0');
+const estimatedCost = estimateTokens(messages[messages.length - 1]?.content || '') * INPUT_COST_PER_TOKEN + 500 * OUTPUT_COST_PER_TOKEN;
+if (balance < estimatedCost) throw new Error('Insufficient balance');
+const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+Authorization: `Bearer ${apiKey}`,
+'HTTP-Referer': process.env.APP_URL || 'https://aestrist.vercel.app',
+'X-Title': 'Aestrist Chat',
+},
+body: JSON.stringify({
+model,
+messages,
+temperature: 0.7,
+max_tokens: 2048,
+stream: true,
+}),
+signal: AbortSignal.timeout(60000),
+});
+if (!response.ok) {
+const err = await response.text();
+throw new Error(`OpenRouter ${response.status}: ${err}`);
+}
+const fullText = await pipeStream(response.body, res);
+if (fullText && userId) {
+const cost = estimateCost(messages[messages.length - 1]?.content || '', fullText);
+const newBalance = Math.max(0, balance - cost);
+redis.set(balanceKey, newBalance.toFixed(6)).catch(() => {});
+const tx = JSON.stringify({
+type: 'debit',
+amount: cost.toFixed(6),
+description: model,
+timestamp: new Date().toISOString(),
+});
+redis.lpush(`user:${userId}:transactions`, tx).catch(() => {});
+}
+}
+
+async function streamWithModel(message, rawModel, history, res, extra = {}) {
+const publicId = isAelModel(rawModel)
+? (rawModel === 'Ael 1 Pro' || rawModel === AEL_1_PRO_ID ? AEL_1_PRO_ID : AEL_1_ID)
+: null;
+if (!publicId) {
+sseError(res, `Not an Ael alias: ${rawModel}`, 400);
+return;
+}
+const routes = MODEL_ROUTES[publicId];
+if (!routes) {
+sseError(res, `No route table for model: ${rawModel}`, 500);
+return;
+}
+const messages = buildMessages(history, message);
+for (const route of routes) {
+try {
+switch (route.provider) {
+case 'ael':
+await streamAelProvider(route.model, messages, res);
+break;
+case 'nim':
+await streamNimProvider(route.model, messages, res);
+break;
+case 'openrouter':
+await streamOpenRouterProvider(route.model, messages, extra.userId, res);
+break;
+default:
+continue;
+}
+return;
+} catch {
+continue;
+}
+}
+sseError(res, `All providers failed for ${publicId}`, 502);
+}
+
 // ── Free tier: NVIDIA NIM (streaming) ───────────────────────────────
 async function streamFree(message, model, history, res) {
-  const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) return sseError(res, 'NVIDIA_API_KEY is not configured', 500);
-
-  const selectedModel = model || 'meta/llama-3.3-70b-instruct';
-  const messages = buildMessages(history, message);
-
-  const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+const apiKey = process.env.NVIDIA_API_KEY;
+if (!apiKey) return sseError(res, 'NVIDIA_API_KEY is not configured', 500);
+const selectedModel = model || 'meta/llama-3.3-70b-instruct';
+if (isAelModel(selectedModel)) {
+return streamWithModel(message, selectedModel, history, res);
+}
+const messages = buildMessages(history, message);
+const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -85,10 +271,14 @@ async function streamPlatform(message, model, userId, history, res) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return sseError(res, 'OPENROUTER_API_KEY is not configured', 500);
 
-  const selectedModel = model || 'openai/gpt-4o-mini';
+const selectedModel = model || 'openai/gpt-4o-mini';
 
-  // Check balance
-  const balanceKey = `user:${userId}:balance`;
+if (isAelModel(selectedModel)) {
+return streamWithModel(message, selectedModel, history, res, { userId });
+}
+
+// Check balance
+const balanceKey = `user:${userId}:balance`;
   const rawBalance = await redis.get(balanceKey);
   const balance = parseFloat(rawBalance || '0');
   const estimatedCost = estimateTokens(message) * INPUT_COST_PER_TOKEN + 500 * OUTPUT_COST_PER_TOKEN;

@@ -11,7 +11,7 @@ export default function ChatPage() {
   // Tier / payment mode — persisted per-session
   const [tier, setTier] = useState(() => localStorage.getItem('aestrist_tier') || 'free')
   const [paymentMode, setPaymentMode] = useState(() => localStorage.getItem('aestrist_payment_mode') || 'platform')
-  const [model, setModel] = useState(() => localStorage.getItem('aestrist_model') || 'meta/llama-3.3-70b-instruct')
+  const [model, setModel] = useState(() => localStorage.getItem('aestrist_model') || 'ael-1')
   const [provider, setProvider] = useState(() => localStorage.getItem('aestrist_provider') || null)
   const [userApiKey, setUserApiKey] = useState(() => localStorage.getItem('aestrist_byok_key') || '')
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -31,20 +31,21 @@ export default function ChatPage() {
   useEffect(() => { localStorage.setItem('aestrist_model', model) }, [model])
   useEffect(() => { if (provider) localStorage.setItem('aestrist_provider', provider) }, [provider])
 
-  const handleTierChange = useCallback((newTier) => {
-    setTier(newTier)
-    setError('')
-    if (newTier === 'free') {
-      setModel('meta/llama-3.3-70b-instruct')
-      setProvider(null)
-    } else if (paymentMode === 'byok') {
-      setModel('gpt-4o-mini')
-      setProvider('openai')
-    } else {
-      setModel('openai/gpt-4o-mini')
-      setProvider('openai')
-    }
-  }, [paymentMode])
+const handleTierChange = useCallback((newTier) => {
+setTier(newTier)
+setError('')
+if (newTier === 'free') {
+setModel('ael-1')
+setProvider(null)
+} else if (paymentMode === 'byok') {
+const providerDefaults = { openai: 'gpt-4o', anthropic: 'claude-3-5-sonnet-20241022', openrouter: 'openai/gpt-4o' }
+setModel(providerDefaults[provider] || 'gpt-4o')
+setProvider(provider || 'openai')
+} else {
+setModel('openai/gpt-4o')
+setProvider('openai')
+}
+}, [paymentMode, provider])
 
   const handlePaymentModeChange = useCallback((mode) => {
     setPaymentMode(mode)

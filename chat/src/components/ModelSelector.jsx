@@ -4,9 +4,11 @@ import { fetchModels } from '../lib/api'
 
 // Fallbacks in case the API is entirely unreachable
 const FREE_FALLBACK = [
-  { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', provider: 'Meta' },
-  { id: 'mistralai/mistral-7b-instruct-v0.3', name: 'Mistral 7B', provider: 'Mistral' },
-  { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Nemotron 70B', provider: 'NVIDIA' },
+{ id: 'ael-1', name: 'Ael 1', provider: 'Ael' },
+{ id: 'ael-1-pro', name: 'Ael 1 Pro', provider: 'Ael', experimental: true },
+{ id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', provider: 'Meta' },
+{ id: 'mistralai/mistral-7b-instruct-v0.3', name: 'Mistral 7B', provider: 'Mistral' },
+{ id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Nemotron 70B', provider: 'NVIDIA' },
 ]
 
 const PLATFORM_FALLBACK = [
@@ -160,6 +162,7 @@ export default function ModelSelector({ tier, paymentMode, model, provider, onSe
                   {m.provider && <span className="model-item-provider">{m.provider}</span>}
                 </div>
                 {m.id === model && <span className="model-item-check">✓</span>}
+{m.experimental && <span className="experimental-badge">Experimental</span>}
               </button>
             ))}
           </div>

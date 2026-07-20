@@ -11,6 +11,47 @@ const CORS_HEADERS = {
 let cache = { nim: null, openrouter: null, ts: 0 };
 const TTL = 15 * 60 * 1000; // 15 minutes — longer because we health-check
 
+// ── Public model IDs (never expose backend names to clients) ──────────
+export const AEL_1_ID = 'ael-1';
+export const AEL_1_PRO_ID = 'ael-1-pro';
+
+// ── Model route table ────────────────────────────────────────────────
+// The alias (ael-1 / ael-1-pro) is NEVER forwarded as a model ID.
+export const MODEL_ROUTES = {
+[AEL_1_ID]: [
+{ provider: 'ael', model: 'qwen3.7-max' },
+{ provider: 'ael', model: 'qwen3.7-plus' },
+{ provider: 'nim', model: 'meta/llama-3.3-70b-instruct' },
+],
+[AEL_1_PRO_ID]: [
+{ provider: 'ael', model: 'qwen3.8-max-preview' },
+],
+};
+
+export function publicModelId(internalId) {
+for (const [pub, routes] of Object.entries(MODEL_ROUTES)) {
+if (routes.some(r => r.model === internalId)) return pub;
+}
+return null;
+}
+
+export function getAelModelId(rawModel) {
+if (!rawModel) return null;
+if (MODEL_ROUTES[AEL_1_ID]?.some(r => r.model === rawModel)) return rawModel;
+if (MODEL_ROUTES[AEL_1_PRO_ID]?.some(r => r.model === rawModel)) return rawModel;
+if (rawModel === AEL_1_ID) return MODEL_ROUTES[AEL_1_ID][0].model;
+if (rawModel === AEL_1_PRO_ID) return MODEL_ROUTES[AEL_1_PRO_ID][0].model;
+if (rawModel === 'Ael 1') return MODEL_ROUTES[AEL_1_ID][0].model;
+if (rawModel === 'Ael 1 Pro') return MODEL_ROUTES[AEL_1_PRO_ID][0].model;
+return rawModel;
+}
+
+export function isAelModel(rawModel) {
+return rawModel === AEL_1_ID || rawModel === AEL_1_PRO_ID ||
+rawModel === 'Ael 1' || rawModel === 'Ael 1 Pro' ||
+!!publicModelId(rawModel);
+}
+
 // Fallback — models we know exist (will be filtered down if they fail)
 const NIM_FALLBACK = [
   { id: 'meta/llama-3.3-70b-instruct', name: 'LLaMA 3.3 70B Instruct', provider: 'Meta' },
@@ -183,9 +224,14 @@ export default async function handler(req, res) {
     cache = { nim, openrouter, ts: now };
   }
 
-  return res.status(200).json({
-    nim: cache.nim,
-    openrouter: cache.openrouter,
-    ts: cache.ts,
-  });
+const aelModels = [
+{ id: AEL_1_ID, name: 'Ael 1', provider: 'Ael', experimental: false },
+{ id: AEL_1_PRO_ID, name: 'Ael 1 Pro', provider: 'Ael', experimental: true },
+];
+return res.status(200).json({
+nim: cache.nim,
+openrouter: cache.openrouter,
+ael: aelModels,
+ts: cache.ts,
+});
 }

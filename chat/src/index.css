@@ -794,8 +794,21 @@
 }
 
 .model-source-text {
-  font-weight: 500;
-  color: var(--cn-text-dim);
+font-weight: 500;
+color: var(--cn-text-dim);
+}
+
+.experimental-badge {
+margin-left: 8px;
+font-size: 9px;
+font-weight: 700;
+letter-spacing: 0.06em;
+text-transform: uppercase;
+padding: 2px 6px;
+border-radius: 999px;
+background: rgba(255, 160, 40, 0.18);
+color: #ffb065;
+border: 1px solid rgba(255, 160, 40, 0.35);
 }
 
 .model-poll-status {
