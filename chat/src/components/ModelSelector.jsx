@@ -2,13 +2,19 @@ import { useState, useEffect, useRef } from 'react'
 import { ChevronDown, Search, RotateCw, Zap, CreditCard, Key } from 'lucide-react'
 import { fetchModels } from '../lib/api'
 
+// AEL aliases are always available, sourced from the /api/models
+// payload's `ael` array. Both fall back to the same hardcoded list if
+// the API is unreachable so the brand is never silently missing.
+const AEL_FALLBACK = [
+  { id: 'ael-1', name: 'Ael 1', provider: 'Ael' },
+  { id: 'ael-1-pro', name: 'Ael 1 Pro', provider: 'Ael', experimental: true },
+];
+
 // Fallbacks in case the API is entirely unreachable
 const FREE_FALLBACK = [
-{ id: 'ael-1', name: 'Ael 1', provider: 'Ael' },
-{ id: 'ael-1-pro', name: 'Ael 1 Pro', provider: 'Ael', experimental: true },
-{ id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', provider: 'Meta' },
-{ id: 'mistralai/mistral-7b-instruct-v0.3', name: 'Mistral 7B', provider: 'Mistral' },
-{ id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Nemotron 70B', provider: 'NVIDIA' },
+  { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', provider: 'Meta' },
+  { id: 'mistralai/mistral-7b-instruct-v0.3', name: 'Mistral 7B', provider: 'Mistral' },
+  { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Nemotron 70B', provider: 'NVIDIA' },
 ]
 
 const PLATFORM_FALLBACK = [
@@ -88,7 +94,14 @@ export default function ModelSelector({ tier, paymentMode, model, provider, onSe
 
   // ── Resolve the right model list for current tier/mode ─────────────
   function getModelList() {
-    if (tier === 'free') return models?.nim || FREE_FALLBACK
+    if (tier === 'free') {
+      // AEL always pinned to the top of the free list — these are the
+      // brand's own models and are served by the backend regardless of
+      // what NVIDIA NIM reports on a given poll.
+      const ael = models?.ael || AEL_FALLBACK
+      const nim = models?.nim || FREE_FALLBACK
+      return [...ael, ...nim]
+    }
     if (paymentMode === 'byok') {
       if (provider === 'openrouter') return models?.openrouter || PLATFORM_FALLBACK
       return BYOK_OPENAI

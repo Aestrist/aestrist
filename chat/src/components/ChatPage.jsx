@@ -17,6 +17,7 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState('')
+  const abortRef = useRef(null)
 
   // Auto-login on mount
   useEffect(() => {
@@ -112,6 +113,8 @@ setProvider('openai')
     })
 
     setStreaming(true)
+    const controller = new AbortController()
+    abortRef.current = controller
 
     await streamMessage(
       {
@@ -123,18 +126,29 @@ setProvider('openai')
         paymentMode,
         userApiKey: paymentMode === 'byok' ? userApiKey : undefined,
         history: history.map(m => ({ role: m.role, content: m.content })),
+        signal: controller.signal,
       },
       {
         onDelta(delta) {
+          if (controller.signal.aborted) return
           updateLastMessage(chatId, patch => ({
             content: (patch.content || '') + delta,
           }))
         },
         onDone() {
+          abortRef.current = null
           updateLastMessage(chatId, { streaming: false })
           setStreaming(false)
         },
         onError(msg) {
+          abortRef.current = null
+          // User-initiated cancel: keep whatever text streamed so far,
+          // just mark the message as finished (not streaming).
+          if (msg === 'cancelled') {
+            updateLastMessage(chatId, { streaming: false })
+            setStreaming(false)
+            return
+          }
           updateLastMessage(chatId, { content: `Error: ${msg}`, streaming: false, error: true })
           setError(msg)
           setStreaming(false)
@@ -142,6 +156,17 @@ setProvider('openai')
       }
     )
   }, [userId, streaming, tier, paymentMode, userApiKey, activeChatId, activeChat, model, provider, createChat, addMessage, updateLastMessage])
+
+  const handleCancel = useCallback(() => {
+    if (!streaming) return
+    abortRef.current?.abort()
+    abortRef.current = null
+  }, [streaming])
+
+  // Clean up any in-flight stream if the page unmounts mid-generation
+  useEffect(() => {
+    return () => abortRef.current?.abort()
+  }, [])
 
   return (
     <div className="app-shell">
@@ -168,6 +193,7 @@ setProvider('openai')
         streaming={streaming}
         error={error}
         onSend={handleSend}
+        onCancel={handleCancel}
         onClearError={() => setError('')}
       />
     </div>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { ArrowUp, Square } from 'lucide-react'
 
-export default function ChatInput({ onSend, loading }) {
+export default function ChatInput({ onSend, onCancel, loading }) {
   const [input, setInput] = useState('')
   const textareaRef = useRef(null)
 
@@ -18,8 +18,12 @@ export default function ChatInput({ onSend, loading }) {
   }, [])
 
   function handleSubmit() {
+    if (loading) {
+      onCancel?.()
+      return
+    }
     const val = input.trim()
-    if (!val || loading) return
+    if (!val) return
     onSend(val)
     setInput('')
     // Reset height
@@ -48,9 +52,9 @@ export default function ChatInput({ onSend, loading }) {
         />
         <button
           onClick={handleSubmit}
-          disabled={(!input.trim() && !loading)}
+          disabled={!input.trim() && !loading}
           className={`send-btn ${loading ? 'send-btn-stop' : ''}`}
-          title={loading ? 'Generating...' : 'Send message'}
+          title={loading ? 'Stop generating' : 'Send message'}
         >
           {loading ? <Square size={14} fill="currentColor" /> : <ArrowUp size={16} />}
         </button>

@@ -4,7 +4,7 @@ import ChatMessages from './ChatMessages'
 import ChatInput from './ChatInput'
 import BalanceDisplay from './BalanceDisplay'
 
-export default function ChatMain({ sidebarOpen, onToggleSidebar, tier, paymentMode, model, streaming, error, onSend, onClearError }) {
+export default function ChatMain({ sidebarOpen, onToggleSidebar, tier, paymentMode, model, streaming, error, onSend, onCancel, onClearError }) {
   const { activeChat } = useChat()
   const messages = activeChat?.messages || []
 
@@ -40,7 +40,7 @@ export default function ChatMain({ sidebarOpen, onToggleSidebar, tier, paymentMo
       <ChatMessages messages={messages} streaming={streaming} />
 
       {/* Input */}
-      <ChatInput onSend={onSend} loading={streaming} />
+      <ChatInput onSend={onSend} onCancel={onCancel} loading={streaming} />
     </main>
   )
 }

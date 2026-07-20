@@ -10,6 +10,40 @@ const CORS_HEADERS = {
 let cache = { nim: null, openrouter: null, ts: 0 };
 const TTL = 10 * 60 * 1000; // 10 minutes
 
+// ── Public model IDs (never expose backend names to clients) ──────────
+export const AEL_1_ID = 'ael-1';
+export const AEL_1_PRO_ID = 'ael-1-pro';
+
+// ── Model route table ────────────────────────────────────────────────
+// The alias (ael-1 / ael-1-pro) is NEVER forwarded as a model ID.
+// Each entry is tried in order; first one that succeeds wins.
+export const MODEL_ROUTES = {
+  [AEL_1_ID]: [
+    { provider: 'ael', model: 'qwen3.7-max' },
+    { provider: 'ael', model: 'qwen3.7-plus' },
+    { provider: 'nim', model: 'meta/llama-3.3-70b-instruct' },
+  ],
+  [AEL_1_PRO_ID]: [
+    { provider: 'ael', model: 'qwen3.8-max-preview' },
+  ],
+};
+
+export function publicModelId(internalId) {
+  for (const [pub, routes] of Object.entries(MODEL_ROUTES)) {
+    if (routes.some((r) => r.model === internalId)) return pub;
+  }
+  return null;
+}
+
+export function isAelModel(rawModel) {
+  if (!rawModel) return false;
+  return (
+    rawModel === AEL_1_ID ||
+    rawModel === AEL_1_PRO_ID ||
+    !!publicModelId(rawModel)
+  );
+}
+
 // Models we always want available even if the API is down
 const NIM_FALLBACK = [
   { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', provider: 'Meta' },
@@ -152,9 +186,15 @@ export default async function handler(req, res) {
     cache = { nim, openrouter, ts: now };
   }
 
+  const aelModels = [
+    { id: AEL_1_ID, name: 'Ael 1', provider: 'Ael', experimental: false },
+    { id: AEL_1_PRO_ID, name: 'Ael 1 Pro', provider: 'Ael', experimental: true },
+  ];
+
   return res.status(200).json({
     nim: cache.nim,
     openrouter: cache.openrouter,
+    ael: aelModels,
     cached: now - cache.ts < 1000, // true if this response was freshly fetched
     ts: cache.ts,
   });

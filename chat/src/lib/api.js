@@ -40,15 +40,20 @@ export async function fetchModels() {
  * onDone() — called when stream ends
  * onError(msg) — called on error
  */
-export async function streamMessage({ message, model, tier, userId, provider, paymentMode, userApiKey, history }, { onDelta, onDone, onError }) {
+export async function streamMessage({ message, model, tier, userId, provider, paymentMode, userApiKey, history, signal }, { onDelta, onDone, onError }) {
   let response
   try {
     response = await fetch(`${BASE}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, model, tier, userId, provider, paymentMode, userApiKey, history }),
+      signal,
     })
   } catch (err) {
+    if (err?.name === 'AbortError') {
+      onError('cancelled')
+      return
+    }
     onError(err.message || 'Network error')
     return
   }
@@ -102,8 +107,12 @@ export async function streamMessage({ message, model, tier, userId, provider, pa
     }
     onDone()
   } catch (err) {
+    if (err?.name === 'AbortError') {
+      onError('cancelled')
+      return
+    }
     onError(err.message || 'Stream error')
   } finally {
-    reader.releaseLock()
+    try { reader.releaseLock() } catch {}
   }
 }
