@@ -451,11 +451,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // DEBUG: verify this exact code path is running
-  if (req.headers['x-vercel-debug'] === '8ec905d') {
-    return res.status(200).json({ commit: '8ec905d', deployed: true });
-  }
-
   const { message, model, tier, userId, provider, paymentMode, userApiKey, history } = req.body || {};
 
   if (!message || typeof message !== 'string') {
