@@ -54,7 +54,7 @@ function sseError(res, message, status) {
 // Each returns once the stream is fully finished (or throws on failure).
 
 async function streamAelProvider(model, messages, res) {
-  console.error('[ael] entered, model:', model);
+  sseChunk(res, { _dbg: 'ael_entered', model });
   const baseUrl = 'https://fantastic-semifreddo-52f872.netlify.app/v1/chat/completions';
   const response = await fetch(baseUrl, {
     method: 'POST',
@@ -74,6 +74,7 @@ async function streamAelProvider(model, messages, res) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let idx = 0;
 
   try {
     while (true) {
@@ -90,7 +91,10 @@ async function streamAelProvider(model, messages, res) {
           const parsed = JSON.parse(trimmed.slice(6));
           if (parsed.error) continue;
           const d = parsed?.choices?.[0]?.delta;
-          if (!d) continue;
+          if (!d) {
+            sseChunk(res, { _dbg: { r: false, d: false, nd: true, i: idx++ } });
+            continue;
+          }
           const reasoning =
             d.reasoning_content !== undefined ? d.reasoning_content :
             d.reasoning !== undefined ? d.reasoning : undefined;
@@ -99,11 +103,12 @@ async function streamAelProvider(model, messages, res) {
             const payload = {};
             if (delta) payload.delta = delta;
             if (reasoning) payload.reasoning = reasoning;
-            console.error('[ael] emit:', JSON.stringify(payload));
+            payload._dbg = { r: !!reasoning, d: !!delta, rl: reasoning?.length, dl: delta?.length, i: idx };
+            idx++;
             sseChunk(res, payload);
           }
         } catch (e) {
-          console.error('[ael] parse error:', e?.message);
+          sseChunk(res, { _dbg_err: e?.message, _dbg: { r: false, d: false, rl: 0, dl: 0, i: idx++ } });
         }
       }
     }
@@ -409,11 +414,10 @@ async function pipeStream(body, res) {
             const payload = {};
             if (delta) payload.delta = delta;
             if (reasoning) payload.reasoning = reasoning;
-            console.error('[pipe] emit:', JSON.stringify(payload));
             sseChunk(res, payload);
           }
-        } catch (e) {
-          console.error('[pipe] parse error:', e?.message);
+        } catch {
+          // malformed chunk
         }
       }
     }
