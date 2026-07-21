@@ -94,8 +94,12 @@ async function streamAelProvider(model, messages, res) {
             d.reasoning_content !== undefined ? d.reasoning_content :
             d.reasoning !== undefined ? d.reasoning : undefined;
           const delta = d.content;
-          if (reasoning) sseChunk(res, { reasoning });
-          if (delta) sseChunk(res, { delta });
+          if (reasoning || delta) {
+            const payload = {};
+            if (delta) payload.delta = delta;
+            if (reasoning) payload.reasoning = reasoning;
+            sseChunk(res, payload);
+          }
         } catch { /* ignore malformed */ }
       }
     }
@@ -396,9 +400,12 @@ async function pipeStream(body, res) {
           const delta = d?.content;
           if (delta) {
             fullText += delta;
-            sseChunk(res, { delta });
-          } else if (reasoning) {
-            sseChunk(res, { reasoning });
+          }
+          if (delta || reasoning) {
+            const payload = {};
+            if (delta) payload.delta = delta;
+            if (reasoning) payload.reasoning = reasoning;
+            sseChunk(res, payload);
           }
         } catch {
           // Ignore malformed chunks
