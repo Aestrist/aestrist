@@ -54,6 +54,7 @@ function sseError(res, message, status) {
 // Each returns once the stream is fully finished (or throws on failure).
 
 async function streamAelProvider(model, messages, res) {
+  console.error('[ael] entered, model:', model);
   const baseUrl = 'https://fantastic-semifreddo-52f872.netlify.app/v1/chat/completions';
   const response = await fetch(baseUrl, {
     method: 'POST',
@@ -98,9 +99,12 @@ async function streamAelProvider(model, messages, res) {
             const payload = {};
             if (delta) payload.delta = delta;
             if (reasoning) payload.reasoning = reasoning;
+            console.error('[ael] emit:', JSON.stringify(payload));
             sseChunk(res, payload);
           }
-        } catch { /* ignore malformed */ }
+        } catch (e) {
+          console.error('[ael] parse error:', e?.message);
+        }
       }
     }
   } finally {
@@ -405,10 +409,11 @@ async function pipeStream(body, res) {
             const payload = {};
             if (delta) payload.delta = delta;
             if (reasoning) payload.reasoning = reasoning;
+            console.error('[pipe] emit:', JSON.stringify(payload));
             sseChunk(res, payload);
           }
-        } catch {
-          // Ignore malformed chunks
+        } catch (e) {
+          console.error('[pipe] parse error:', e?.message);
         }
       }
     }
