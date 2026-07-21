@@ -137,6 +137,7 @@ setProvider('openai')
         },
         onReasoning(text) {
           if (controller.signal.aborted) return
+          console.log('[reasoning]', text.slice(0, 80))
           updateLastMessage(chatId, patch => ({
             reasoning: (patch.reasoning || '') + text,
           }))

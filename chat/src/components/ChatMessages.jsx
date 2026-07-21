@@ -103,7 +103,7 @@ function Message({ msg }) {
         )}
 
         <div className="msg-content">
-          {isStreaming && !msg.content ? (
+          {isStreaming && !msg.content && !msg.reasoning ? (
             <div className="typing-indicator">
               <span className="typing-dot" />
               <span className="typing-dot" />
