@@ -73,55 +73,6 @@ async function streamAelProvider(model, messages, res) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let firstChunk = null;
-  let gotValidChunk = false;
-
-  try {
-    while (!gotValidChunk) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === 'data: [DONE]') continue;
-        if (!trimmed.startsWith('data: ')) continue;
-        try {
-          const parsed = JSON.parse(trimmed.slice(6));
-          if (parsed.error) continue;
-          const delta = parsed?.choices?.[0]?.delta;
-          if (
-            delta &&
-            (delta.content !== undefined ||
-              delta.reasoning_content !== undefined ||
-              delta.reasoning !== undefined ||
-              parsed.choices?.[0]?.finish_reason)
-          ) {
-            gotValidChunk = true;
-            firstChunk = parsed;
-            break;
-          }
-        } catch { continue; }
-      }
-    }
-  } catch {
-    try { reader.releaseLock(); } catch {}
-    throw new Error('Ael pre-flight read failed');
-  }
-  if (!gotValidChunk) {
-    try { reader.releaseLock(); } catch {}
-    throw new Error('Ael returned no valid content');
-  }
-
-  // Forward first chunk's reasoning and content separately
-  const firstDelta = firstChunk?.choices?.[0]?.delta;
-  const firstReasoning =
-    firstDelta?.reasoning_content !== undefined ? firstDelta.reasoning_content :
-    firstDelta?.reasoning !== undefined ? firstDelta.reasoning : undefined;
-  const firstContent = firstDelta?.content;
-  if (firstReasoning) sseChunk(res, { reasoning: firstReasoning });
-  if (firstContent) sseChunk(res, { delta: firstContent });
 
   try {
     while (true) {
@@ -136,19 +87,22 @@ async function streamAelProvider(model, messages, res) {
         if (!trimmed.startsWith('data: ')) continue;
         try {
           const parsed = JSON.parse(trimmed.slice(6));
+          if (parsed.error) continue;
           const d = parsed?.choices?.[0]?.delta;
+          if (!d) continue;
           const reasoning =
-            d?.reasoning_content !== undefined ? d.reasoning_content :
-            d?.reasoning !== undefined ? d.reasoning : undefined;
-          const delta = d?.content;
-          if (delta) sseChunk(res, { delta });
+            d.reasoning_content !== undefined ? d.reasoning_content :
+            d.reasoning !== undefined ? d.reasoning : undefined;
+          const delta = d.content;
           if (reasoning) sseChunk(res, { reasoning });
+          if (delta) sseChunk(res, { delta });
         } catch { /* ignore malformed */ }
       }
     }
   } finally {
     try { reader.releaseLock(); } catch {}
   }
+
   sseDone(res);
 }
 
