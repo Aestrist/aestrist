@@ -90,7 +90,14 @@ async function streamAelProvider(model, messages, res) {
         try {
           const parsed = JSON.parse(trimmed.slice(6));
           if (parsed.error) continue;
-          if (parsed.choices?.[0]?.delta?.content !== undefined || parsed.choices?.[0]?.finish_reason) {
+          const delta = parsed?.choices?.[0]?.delta;
+          if (
+            delta &&
+            (delta.content !== undefined ||
+              delta.reasoning_content !== undefined ||
+              delta.reasoning !== undefined ||
+              parsed.choices?.[0]?.finish_reason)
+          ) {
             gotValidChunk = true;
             firstChunk = parsed;
             break;
@@ -107,7 +114,14 @@ async function streamAelProvider(model, messages, res) {
     throw new Error('Ael returned no valid content');
   }
 
-  sseChunk(res, firstChunk);
+  // Forward first chunk's reasoning and content separately
+  const firstDelta = firstChunk?.choices?.[0]?.delta;
+  const firstReasoning =
+    firstDelta?.reasoning_content !== undefined ? firstDelta.reasoning_content :
+    firstDelta?.reasoning !== undefined ? firstDelta.reasoning : undefined;
+  const firstContent = firstDelta?.content;
+  if (firstReasoning) sseChunk(res, { reasoning: firstReasoning });
+  if (firstContent) sseChunk(res, { delta: firstContent });
 
   try {
     while (true) {
@@ -122,8 +136,13 @@ async function streamAelProvider(model, messages, res) {
         if (!trimmed.startsWith('data: ')) continue;
         try {
           const parsed = JSON.parse(trimmed.slice(6));
-          const delta = parsed?.choices?.[0]?.delta?.content;
+          const d = parsed?.choices?.[0]?.delta;
+          const reasoning =
+            d?.reasoning_content !== undefined ? d.reasoning_content :
+            d?.reasoning !== undefined ? d.reasoning : undefined;
+          const delta = d?.content;
           if (delta) sseChunk(res, { delta });
+          if (reasoning) sseChunk(res, { reasoning });
         } catch { /* ignore malformed */ }
       }
     }
@@ -416,10 +435,16 @@ async function pipeStream(body, res) {
         const jsonStr = trimmed.slice(6);
         try {
           const parsed = JSON.parse(jsonStr);
-          const delta = parsed?.choices?.[0]?.delta?.content;
+          const d = parsed?.choices?.[0]?.delta;
+          const reasoning =
+            d?.reasoning_content !== undefined ? d.reasoning_content :
+            d?.reasoning !== undefined ? d.reasoning : undefined;
+          const delta = d?.content;
           if (delta) {
             fullText += delta;
             sseChunk(res, { delta });
+          } else if (reasoning) {
+            sseChunk(res, { reasoning });
           }
         } catch {
           // Ignore malformed chunks

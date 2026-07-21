@@ -40,7 +40,7 @@ export async function fetchModels() {
  * onDone() — called when stream ends
  * onError(msg) — called on error
  */
-export async function streamMessage({ message, model, tier, userId, provider, paymentMode, userApiKey, history, signal }, { onDelta, onDone, onError }) {
+export async function streamMessage({ message, model, tier, userId, provider, paymentMode, userApiKey, history, signal }, { onDelta, onReasoning, onDone, onError }) {
   let response
   try {
     response = await fetch(`${BASE}/api/chat`, {
@@ -99,6 +99,9 @@ export async function streamMessage({ message, model, tier, userId, provider, pa
           }
           if (parsed.delta) {
             onDelta(parsed.delta)
+          }
+          if (parsed.reasoning) {
+            onReasoning?.(parsed.reasoning)
           }
         } catch {
           // skip malformed

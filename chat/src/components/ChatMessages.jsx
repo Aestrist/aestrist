@@ -90,6 +90,18 @@ function Message({ msg }) {
         {msg.model && (
           <span className="msg-model">{msg.model.split('/').pop()}</span>
         )}
+
+        {/* Reasoning block — collapsible, shown when model emits reasoning_content */}
+        {msg.reasoning && (
+          <details className="reasoning-block" open={isStreaming}>
+            <summary className="reasoning-summary">
+              <span className="reasoning-dot" />
+              {isStreaming && msg.reasoning ? 'Reasoning…' : 'Reasoned'}
+            </summary>
+            <div className="reasoning-content">{msg.reasoning}</div>
+          </details>
+        )}
+
         <div className="msg-content">
           {isStreaming && !msg.content ? (
             <div className="typing-indicator">

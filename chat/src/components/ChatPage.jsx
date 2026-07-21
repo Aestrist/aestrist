@@ -135,6 +135,12 @@ setProvider('openai')
             content: (patch.content || '') + delta,
           }))
         },
+        onReasoning(text) {
+          if (controller.signal.aborted) return
+          updateLastMessage(chatId, patch => ({
+            reasoning: (patch.reasoning || '') + text,
+          }))
+        },
         onDone() {
           abortRef.current = null
           updateLastMessage(chatId, { streaming: false })
