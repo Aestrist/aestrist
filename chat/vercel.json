@@ -1,11 +1,14 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite",
+  "framework": null,
   "functions": {
     "api/chat.js": { "maxDuration": 60 },
     "api/models.js": { "maxDuration": 15 },
     "api/debug.js": { "maxDuration": 10 },
     "api/**/*.js": { "maxDuration": 30 }
-  }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
