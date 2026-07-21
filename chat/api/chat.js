@@ -31,6 +31,7 @@ function startSSE(res) {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+  res.setHeader('X-Ael-Debug', '54372cc');
   Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
   res.flushHeaders();
 }
